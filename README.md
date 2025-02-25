@@ -1,1 +1,1 @@
-# Lottery-Tickets-MIPS-Assembly
+This is my Lottery Ticket C Project transformed into MIPS Assembly. This has the same function as the Lottery Ticket C Project however we were required to transform our C code into MIPS Assembly code and have it function just as it does in C. So, this is a program that represents the lottery. It asks for the actual lottery numbers you want to have including a bonus number. It will then ask how many random lottery tickets you want to generate and then check to see if that ticket won the lottery and return the results of each ticket.
