@@ -1,0 +1,356 @@
+# Name: Jake Henderson
+# Student ID: 23212659
+
+.data
+generated:		.word 0, 0, 0  
+input:			.word 0, 0, 0	
+user: .asciiz 		"Enter 3 integers: "
+balls: .asciiz 		" balls, "
+strikes: .asciiz	" strikes"
+done: .asciiz 		"Good job! Do you want to play again? (Y/N): "
+buffer: .space 64	# Allocate 64 bytes for the input buffer
+newline: .asciiz	"\n"
+char1: .word 0            # Variable for first non-space character (as integer)
+char2: .word 0            # Variable for second non-space character (as integer)
+char3: .word 0 
+
+
+.globl main 
+
+.text 		
+
+main: 
+	la $a0, generated	# $a0 based address of generated array
+	la $a1, input		# $a1 based address of input array
+	li $a2, 3		# $a2 is cnt = 3
+	li $t0, 0		# $t0 is finish = 0
+
+	jal generate
+
+finish:
+	bnez $t0, endPrint
+	li $v0, 4
+	la $a0, user
+	syscall
+	
+	li $t1, 0
+	la $s1, input
+	
+
+forInput:
+	bge $t1, $a2, inputDone
+	li $v0, 8
+	la $a0, buffer        # Load address of the buffer to store the string
+    	li $a1, 64            # Maximum number of characters to read
+	syscall
+	
+	
+    	la $t2, char1         
+   	la $t3, char2          
+    	la $t4, char3          
+
+    	la $s0, buffer         # Load address of the buffer (string)
+    	li $t5, 0              # Counter for the number of stored non-space characters
+	
+    
+parse_loop:
+    	lb $t6, 0($s0)         # Load the byte from the string into $t0
+    	beqz $t6, inputDone    # If it's null terminator, end the loop
+    	
+    	li $t7, 32             # ASCII value of space
+    	bne $t6, $t7, storeInt # If it's not a space, print the character
+    
+    	addi $s0, $s0, 1       # Move to the next byte in the string
+    	j parse_loop           
+
+storeInt:
+	subi $t6, $t6, 48
+	la $a1, input
+	
+	beq $t5, 0, store_char1 # If counter is 0, store in char1
+    	beq $t5, 1, store_char2 # If counter is 1, store in char2
+    	beq $t5, 2, store_char3 # If counter is 2, store in char3   
+    	
+    	addi $t5, $t5, 1
+    	addi $s0, $s0, 1
+    	j parse_loop
+    	
+store_char1:
+	sw $t6, 0($a1)
+	addi $t5, $t5, 1
+	addi $s0, $s0, 1
+	j parse_loop
+	
+store_char2:
+	sw $t6, 4($a1)
+	addi $t5, $t5, 1
+	addi $s0, $s0, 1
+	j parse_loop
+	
+store_char3:
+	sw $t6, 8($a1)
+	addi $t5, $t5, 1
+	addi $s0, $s0, 1
+	j parse_loop
+    
+inputDone:
+	jal findBalls
+	move $t7, $v0
+	
+	jal findStrikes
+	move $t5, $v0
+	
+equalStrikes:
+	bne $t5, 3, elsePrint
+	j endPrint
+	
+elsePrint:
+	move $a0, $t7
+	li $v0, 1
+	syscall
+	
+	la $a0, balls
+	li $v0, 4
+	syscall
+	
+	move $a0, $t5
+	li $v0, 1
+	syscall
+	
+	la $a0, strikes
+	li $v0, 4
+	syscall
+	
+	la $a0, newline
+	li $v0, 4
+	syscall
+	
+	j finish
+	
+endPrint:
+    la $a0, done         
+    li $v0, 4            
+    syscall
+
+    li $v0, 12          
+    syscall              
+
+    move $s6, $v0        
+
+    la $a0, newline
+    li $v0, 4
+    syscall
+
+    li $t1, 'Y'          # Load 'Y' ASCII value into $t1
+    li $t2, 'y'          # Load 'y' ASCII value into $t2
+
+    
+    beq $s6, $t1, again  # If play == 'Y', jump to again 
+    beq $s6, $t2, again  # If play == 'y', jump to again 
+
+    j elseEnd            
+
+again:
+    j main               
+
+elseEnd:
+    li $v0, 10           
+    syscall
+
+
+findBalls:
+    addi $sp, $sp, -12    
+    sw $t4, 0($sp)       
+    sw $t3, 4($sp)      
+    sw $ra, 8($sp)        
+
+    # Initialize
+    li $t1, 0               # $t1 is i = 0 (loop index)
+    li $t7, 0               # $t7 is num_balls = 0
+    li $a2, 3               # Assuming cnt = 3
+    j forBalls
+
+forBalls:
+    bge $t1, $a2, endBalls  # if i >= cnt, end loop
+    la $a1, input           # Get address of input array
+    sll $t3, $t1, 2         # Calculate offset for input[i]
+    add $t4, $a1, $t3       # Address of input[i]
+    lw $t6, 0($t4)          # Load input[i] into $t6
+
+
+    sw $ra, 8($sp)          # Save $ra before calling
+    la $a0, generated       # Pass generated array in $a0
+    move $s2, $t6           # Pass input[i] as num in $a1
+    jal find                # Call find function
+    lw $ra, 8($sp)          # Restore $ra after find call
+    move $t2, $v0           
+
+
+    beq $t2, -1, nextBalls  # Skip if find returned -1
+    beq $t2, $t1, nextBalls # Skip if index doesn't match i
+
+    addi $t7, $t7, 1        # Increment num_balls
+    j nextBalls
+
+nextBalls:
+    addi $t1, $t1, 1        # Increment i
+    j forBalls               # Continue loop
+
+endBalls:
+    move $v0, $t7
+    lw $t4, 0($sp)          
+    lw $t3, 4($sp)          
+    lw $ra, 8($sp)          
+    addi $sp, $sp, 12       
+    jr $ra                  
+
+findStrikes:
+    addi $sp, $sp, -12      
+    sw $t3, 0($sp)          
+    sw $t4, 4($sp)          
+    sw $ra, 8($sp)          
+
+    
+    li $t1, 0               # $t1 is i = 0 (loop index)
+    li $t5, 0               # $t5 is num_strikes = 0
+    li $a2, 3               # Assuming cnt = 3, passed in as $a2
+
+forStrikes:
+    bge $t1, $a2, endStrikes # If i >= cnt, end loop
+    la $a1, input           # Load base address of input array
+    sll $t3, $t1, 2         # Calculate offset for input[i] (i * 4)
+    add $t4, $a1, $t3       # Address of input[i]
+    lw $t6, 0($t4)          # Load input[i] into $t6
+
+
+    sw $ra, 8($sp)          # Save $ra before the call
+    la $a0, generated       # Pass generated array in $a0
+    move $s2, $t6           # Pass input[i] as num in $a1
+    jal find                # Call find function
+    lw $ra, 8($sp)          # Restore $ra after find call
+    move $t2, $v0           # Store result of find in $t2
+
+    
+    beq $t2, -1, nextStrikes # If find returned -1, skip this iteration
+    bne $t2, $t1, nextStrikes # If index does not match i, skip
+
+    addi $t5, $t5, 1         # Increment num_strikes
+    j nextStrikes
+
+nextStrikes:
+    addi $t1, $t1, 1         # Increment loop index i
+    j forStrikes             
+
+endStrikes:
+    move $v0, $t5
+    lw $t3, 0($sp)          
+    lw $t4, 4($sp)           
+    lw $ra, 8($sp)           
+    addi $sp, $sp, 12        
+    jr $ra                   
+
+generate:
+	addi $sp, $sp, -16
+	sw $ra, 12($sp)
+	sw $a1, 8($sp)
+	sw $a2, 4($sp)
+	sw $a0, 0($sp)
+	
+	li $t1, 0		# int i = 0
+	li $t2, 0		# int num = 0
+	li $a2, 3
+	move $s0, $a2		# move cnt to $s0
+while:
+	bge $t1, $s0, end	# if i >= cnt then get out of loop and go to find
+
+random:
+	li $v0, 42		# Random int syscall
+	li $a0, 1	 	# where min is 1
+	li $a1, 10		# where max is 10
+	syscall
+	
+	move $s6, $a0		# move random number into $s6
+	
+	beqz $s6, random
+
+	la $a0, generated
+	move $s2, $s6
+	jal find           	# Check if the number is already in the array
+	bne $v0, -1, increment
+	j create
+	
+increment:
+	addi $t1, $t1, 1
+	j while
+	
+create:
+	
+	la $a0, generated
+	sll $t3, $t1, 2         # Calculate offset (i * 4)
+	add $t3, $a0, $t3       # Get address of generated[i]
+	sw $s6, 0($t3)          # Store the random number in generated
+	
+	lw $a0, 0($t3)             # Load the random number into $a0
+    
+	addi $t1, $t1, 1
+	j while
+	
+end:
+	li $t1, 0
+print_loop:
+    bge $t1, $a2, endPrintGen   # Exit if i >= cnt
+    la $a0, generated     # Base address of generated array
+    sll $t3, $t1, 2       # Offset = i * 4
+    add $t3, $a0, $t3     # Address of generated[i]
+    lw $a0, 0($t3)        # Load generated[i] into $a0
+    
+    li $v0, 1             # Print integer syscall
+    syscall
+
+    la $a0, newline       # Print a newline for readability
+    li $v0, 4
+    syscall
+
+    addi $t1, $t1, 1      # Increment i
+    j print_loop          # Continue loop	
+
+
+endPrintGen:
+    
+    lw $ra, 12($sp)
+    lw $a1, 8($sp)    
+    lw $a2, 4($sp)     
+    lw $a0, 0($sp)     
+    
+    addi $sp, $sp, 16  
+    
+    jr $ra
+
+
+find:
+	addi $sp, $sp, -12
+	sw $t7, 8($sp)
+	sw $t8, 4($sp)
+	sw $t9, 0($sp)
+	la $a0, generated
+	
+	li $t8, 0
+	li $v0, -1
+find_loop_start:
+	bge $t8, $a2, find_loop_end
+	sll $t9, $t8, 2
+	add $t9, $t9, $a0
+	lw $t7, 0($t9)
+	beq $t7, $s2, find_loop_found
+	addi $t8, $t8, 1
+	j find_loop_start
+
+find_loop_found:
+	addi $v0, $t8, 0
+
+find_loop_end:
+	lw $t7, 8($sp)
+	lw $t8, 4($sp)
+	lw $t9, 0($sp)
+	addi $sp, $sp, 12
+	jr $ra
